@@ -27,8 +27,8 @@ async function checkRecentMercadoPagoPayments() {
     for (const payment of (data.results || [])) {
       if (payment.status === 'approved' && (payment.transaction_amount || 0) >= minAmount) {
         const paymentDate = new Date(payment.date_created).getTime();
-        // Considera pagamentos realizados nos últimos 3 minutos (180.000 ms)
-        if (now - paymentDate < 180000) {
+        // Considera pagamentos realizados na última 1 hora (3.600.000 ms) que ainda não foram liberados
+        if (now - paymentDate < 3600000) {
           await enqueuePayment(String(payment.id), payment.transaction_amount, 'mercadopago');
         }
       }
