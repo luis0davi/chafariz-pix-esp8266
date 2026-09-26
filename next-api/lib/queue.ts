@@ -95,6 +95,9 @@ export async function enqueuePayment(id: string, amount: number, source: 'mercad
   };
 
   if (KV_URL && KV_TOKEN) {
+    const isProcessed = await redisCommand(['SISMEMBER', 'chafariz_processed_ids', id]);
+    if (isProcessed === 1) return newItem;
+    await redisCommand(['SADD', 'chafariz_processed_ids', id]);
     await redisCommand(['RPUSH', 'chafariz_queue', JSON.stringify(newItem)]);
     return newItem;
   }

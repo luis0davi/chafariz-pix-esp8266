@@ -1,12 +1,53 @@
 import { NextResponse } from 'next/server';
-import { getNextPendingPayment, pingEsp } from '@/lib/queue';
+import { getNextPendingPayment, pingEsp, enqueuePayment } from '@/lib/queue';
 
 export const dynamic = 'force-dynamic';
+
+let lastMercadoPagoCheck = 0;
+
+// Consulta automática de pagamentos recentes no Mercado Pago (Fallback inteligente)
+async function checkRecentMercadoPagoPayments() {
+  const token = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+  if (!token) return;
+
+  const now = Date.now();
+  // Evita sobrecarregar a API: checa no máximo a cada 5 segundos
+  if (now - lastMercadoPagoCheck < 5000) return;
+  lastMercadoPagoCheck = now;
+
+  try {
+    const res = await fetch('https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=3', {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const minAmount = parseFloat(process.env.MINIMUM_AMOUNT || '1.00');
+
+    for (const payment of (data.results || [])) {
+      if (payment.status === 'approved' && (payment.transaction_amount || 0) >= minAmount) {
+        const paymentDate = new Date(payment.date_created).getTime();
+        // Considera pagamentos realizados nos últimos 3 minutos (180.000 ms)
+        if (now - paymentDate < 180000) {
+          await enqueuePayment(String(payment.id), payment.transaction_amount, 'mercadopago');
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[Auto-Sync Mercado Pago]:', e);
+  }
+}
 
 export async function GET() {
   await pingEsp();
 
-  const nextPayment = await getNextPendingPayment();
+  let nextPayment = await getNextPendingPayment();
+
+  // Se a fila estiver vazia, sincroniza com o Mercado Pago para checar se acabou de cair um Pix
+  if (!nextPayment) {
+    await checkRecentMercadoPagoPayments();
+    nextPayment = await getNextPendingPayment();
+  }
 
   if (!nextPayment) {
     return NextResponse.json({
