@@ -90,8 +90,11 @@ void confirmDispense(String paymentId) {
   HTTPClient http;
   String url = String(backend) + "/confirm_dispense";
 
+  http.setTimeout(10000); // 10s timeout para estabilidade
+
   if (url.startsWith("https://")) {
-    sClient.setInsecure(); // Permite HTTPS (Vercel) no ESP8266 sem travar em certificados
+    sClient.setInsecure();
+    sClient.setBufferSizes(1024, 1024); // Otimiza a memória RAM do ESP8266
     http.begin(sClient, url);
   } else {
     http.begin(client, url);
@@ -103,7 +106,7 @@ void confirmDispense(String paymentId) {
   int httpCode = http.POST(payload);
 
   if (httpCode == 200) {
-    Serial.println("✅ Pagamento confirmado no servidor. Fila atualizada.");
+    Serial.println("✅ Pagamento confirmado no servidor. Fila limpa!");
   } else {
     Serial.printf("⚠️ Erro ao confirmar para o servidor. Código HTTP: %d\n", httpCode);
   }
@@ -120,51 +123,65 @@ void checkPendingPayments() {
     return;
   }
 
-  WiFiClient client;
-  WiFiClientSecure sClient;
-  HTTPClient http;
-  String url = String(backend) + "/check_dispense";
+  bool shouldDispense = false;
+  String paymentId = "";
+  float amount = 0.0;
+  int pulses = 2;
+  int durationMs = 1000;
+  int intervalMs = 500;
 
-  if (url.startsWith("https://")) {
-    sClient.setInsecure(); // Permite HTTPS (Vercel) no ESP8266
-    http.begin(sClient, url);
-  } else {
-    http.begin(client, url);
-  }
+  // Bloco isolado para liberar a RAM do SSL imediatamente
+  {
+    WiFiClient client;
+    WiFiClientSecure sClient;
+    HTTPClient http;
+    String url = String(backend) + "/check_dispense";
 
-  int httpCode = http.GET();
+    http.setTimeout(8000);
 
-  if (httpCode == 200) {
-    String response = http.getString();
-    
-    // Aloca documento JSON
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, response);
-
-    if (!error) {
-      bool shouldDispense = doc["dispense"] | false;
-
-      if (shouldDispense) {
-        String paymentId = doc["id"].as<String>();
-        float amount = doc["amount"] | 0.0;
-        int pulses = doc["pulses"] | 2;
-        int durationMs = doc["duration_ms"] | 1000;
-        int intervalMs = doc["interval_ms"] | 500;
-
-        Serial.printf("\n💰 NOVO PAGAMENTO IDENTIFICADO! ID: %s | Valor: R$ %.2f\n", paymentId.c_str(), amount);
-        
-        // 1. Aciona os pulsos no relé para sair a água
-        triggerRelay(pulses, durationMs, intervalMs);
-
-        // 2. Notifica a API que a água foi liberada
-        confirmDispense(paymentId);
-      }
+    if (url.startsWith("https://")) {
+      sClient.setInsecure();
+      sClient.setBufferSizes(1024, 1024); // Reduz uso de RAM
+      http.begin(sClient, url);
+    } else {
+      http.begin(client, url);
     }
-  } else {
-    Serial.printf("⚠️ Falha ao consultar API (HTTP %d). Verifique o IP do backend.\n", httpCode);
+
+    int httpCode = http.GET();
+
+    if (httpCode == 200) {
+      String response = http.getString();
+      
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, response);
+
+      if (!error) {
+        shouldDispense = doc["dispense"] | false;
+        if (shouldDispense) {
+          paymentId = doc["id"].as<String>();
+          amount = doc["amount"] | 0.0;
+          pulses = doc["pulses"] | 2;
+          durationMs = doc["duration_ms"] | 1000;
+          intervalMs = doc["interval_ms"] | 500;
+        }
+      }
+    } else {
+      Serial.printf("⚠️ Falha ao consultar API (HTTP %d).\n", httpCode);
+    }
+
+    http.end(); // 🔌 FECHA A CONEXÃO E LIBERA A RAM ANTES DE QUALQUER OUTRA AÇÃO!
   }
 
-  http.end();
+  // Se houver pagamento pendente, agora temos 100% da RAM livre para agir
+  if (shouldDispense) {
+    Serial.printf("\n💰 NOVO PAGAMENTO IDENTIFICADO! ID: %s | Valor: R$ %.2f\n", paymentId.c_str(), amount);
+    
+    // 1. Aciona o relé
+    triggerRelay(pulses, durationMs, intervalMs);
+
+    // 2. Confirma para o servidor com a memória limpa (evita erro -1)
+    confirmDispense(paymentId);
+  }
 }
 
 // ========================================================================
