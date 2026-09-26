@@ -70,6 +70,17 @@ export default function Dashboard() {
     }
   };
 
+  const handleClearQueue = async () => {
+    try {
+      const res = await fetch('/api/clear_queue', { method: 'POST' });
+      const data = await res.json();
+      setFeedback('🧹 Fila de pagamentos limpa com sucesso!');
+      fetchStats();
+    } catch (e: any) {
+      setFeedback(`❌ Erro ao limpar fila: ${e.message}`);
+    }
+  };
+
   const formatTime = (isoString?: string | null) => {
     if (!isoString) return '--:--:--';
     const d = new Date(isoString);
@@ -203,7 +214,7 @@ export default function Dashboard() {
               Teste o acionamento do relé no seu ESP8266 agora mesmo, sem gastar 1 centavo e sem precisar pagar via Pix real.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <button
               onClick={() => handleSimulate(1.0)}
               disabled={simulating}
@@ -221,6 +232,23 @@ export default function Dashboard() {
               }}
             >
               {simulating ? 'Enviando...' : '🌊 Simular Pix R$ 1,00 (Liberar Água)'}
+            </button>
+            <button
+              onClick={handleClearQueue}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: 'var(--text-muted)',
+                border: '1px solid var(--border-color)',
+                padding: '12px 18px',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              title="Limpar a fila caso haja pagamentos travados"
+            >
+              🧹 Limpar Fila
             </button>
           </div>
         </div>
