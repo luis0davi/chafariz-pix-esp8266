@@ -4,7 +4,7 @@ import { getSystemStats } from '@/lib/queue';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const stats = getSystemStats();
+  const stats = await getSystemStats();
   const hasToken = !!process.env.MERCADO_PAGO_ACCESS_TOKEN;
   const minAmount = process.env.MINIMUM_AMOUNT || '1.00';
   const pulseCount = process.env.PULSE_COUNT || '2';

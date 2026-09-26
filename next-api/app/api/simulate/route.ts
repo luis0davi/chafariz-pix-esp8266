@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const amount = body.amount ? parseFloat(body.amount) : 1.00;
     const simId = 'SIM_' + Date.now();
 
-    const item = enqueuePayment(simId, amount, 'simulation');
+    const item = await enqueuePayment(simId, amount, 'simulation');
 
     return NextResponse.json({
       success: true,

@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       const amount = paymentDetails.transaction_amount || 0;
 
       if (amount >= minimumAmount) {
-        enqueuePayment(String(paymentDetails.id), amount, 'mercadopago');
+        await enqueuePayment(String(paymentDetails.id), amount, 'mercadopago');
         console.log(`[Webhook Mercado Pago] SUCESSO: Pagamento ${paymentDetails.id} de R$ ${amount} enfileirado para liberação de água!`);
       } else {
         console.log(`[Webhook Mercado Pago] Pagamento ${paymentDetails.id} abaixo do valor mínimo (R$ ${amount} < R$ ${minimumAmount}).`);

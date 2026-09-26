@@ -9,6 +9,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 
 // ========================================================================
@@ -20,9 +21,8 @@ const char* password = "8893821370";
 
 
 
-// IP do seu computador na rede local ou URL do seu servidor em nuvem (ex: Vercel)
-// NOTA: O ESP8266 NÃO PODE USAR "localhost"! Usando o IP detectado na sua rede Wi-Fi:
-const char* backend = "http://192.168.2.5:3000/api";
+// URL da sua API na Vercel (com /api no final):
+const char* backend = "https://chafariz-pix-esp8266.vercel.app/api";
 
 // ========================================================================
 // 2. CONFIGURAÇÕES DE HARDWARE (PINOS)
@@ -86,10 +86,17 @@ void confirmDispense(String paymentId) {
   if (WiFi.status() != WL_CONNECTED) return;
 
   WiFiClient client;
+  WiFiClientSecure sClient;
   HTTPClient http;
   String url = String(backend) + "/confirm_dispense";
 
-  http.begin(client, url);
+  if (url.startsWith("https://")) {
+    sClient.setInsecure(); // Permite HTTPS (Vercel) no ESP8266 sem travar em certificados
+    http.begin(sClient, url);
+  } else {
+    http.begin(client, url);
+  }
+
   http.addHeader("Content-Type", "application/json");
 
   String payload = "{\"id\":\"" + paymentId + "\"}";
@@ -114,10 +121,17 @@ void checkPendingPayments() {
   }
 
   WiFiClient client;
+  WiFiClientSecure sClient;
   HTTPClient http;
   String url = String(backend) + "/check_dispense";
 
-  http.begin(client, url);
+  if (url.startsWith("https://")) {
+    sClient.setInsecure(); // Permite HTTPS (Vercel) no ESP8266
+    http.begin(sClient, url);
+  } else {
+    http.begin(client, url);
+  }
+
   int httpCode = http.GET();
 
   if (httpCode == 200) {

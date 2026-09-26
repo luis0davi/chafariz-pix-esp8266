@@ -4,10 +4,9 @@ import { getNextPendingPayment, pingEsp } from '@/lib/queue';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  // Registra que o ESP8266 está ativo
-  pingEsp();
+  await pingEsp();
 
-  const nextPayment = getNextPendingPayment();
+  const nextPayment = await getNextPendingPayment();
 
   if (!nextPayment) {
     return NextResponse.json({

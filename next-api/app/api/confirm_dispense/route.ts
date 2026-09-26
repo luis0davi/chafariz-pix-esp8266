@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'ID do pagamento ausente' }, { status: 400 });
     }
 
-    const success = confirmDispense(String(id));
+    const success = await confirmDispense(String(id));
     return NextResponse.json({ success, id });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
