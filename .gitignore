@@ -1,0 +1,31 @@
+# Dependências do Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Builds do Next.js
+.next/
+out/
+build/
+dist/
+
+# ⚠️ SEGURANÇA: Chaves e Variáveis de Ambiente locais (NUNCA SUBIR O SEU TOKEN)
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Dados locais de teste e histórico
+next-api/data/store.json
+data/store.json
+
+# Compilação do PlatformIO / ESP
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Sistema operacional
+Thumbs.db
+.DS_Store
